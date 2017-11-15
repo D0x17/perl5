@@ -832,7 +832,7 @@ S_fixup_errno_string(pTHX_ SV* sv)
 
             &&   _is_cur_LC_category_utf8(LC_MESSAGES)
 
-#elif defined(USE_LOCLAE_CTYPE)
+#elif defined(USE_LOCALE_CTYPE)
 
                  /* For systems that don't have a separate message category,
                   * this assumes that they follow the CTYPE one */

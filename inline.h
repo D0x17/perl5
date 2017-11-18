@@ -489,8 +489,7 @@ C<L</is_utf8_fixed_width_buf_loclen_flags>>,
 #if defined(PERL_CORE) || defined (PERL_EXT)
 
 /*
-No = here because currently externally undocumented
-for apidoc is_utf8_non_invariant_string
+=for apidoc is_utf8_non_invariant_string
 
 Returns TRUE if L<perlapi/is_utf8_invariant_string> returns FALSE for the first
 C<len> bytes of the string C<s>, but they are, nonetheless, legal Perl-extended

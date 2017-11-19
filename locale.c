@@ -1383,6 +1383,15 @@ S_my_nl_langinfo(const int item, bool toggle)
         freelocale(cur);
     }
 
+    if (strEQ(PL_langinfo_buf, "")) {
+        if (item == PERL_YESSTR) {
+            return "yes";
+        }
+        if (item == PERL_NOSTR) {
+            return "no";
+        }
+    }
+
     return PL_langinfo_buf;
 
 #    endif
@@ -1421,7 +1430,9 @@ S_my_nl_langinfo(const int item, bool toggle)
 
         /* We use only an English set, since we don't know any more */
         case PERL_YESEXPR:   return "^[+1yY]";
+        case PERL_YESSTR:    return "yes";
         case PERL_NOEXPR:    return "^[-0nN]";
+        case PERL_NOSTR:     return "no";
 
 #  ifdef HAS_LOCALECONV
 

@@ -2012,37 +2012,45 @@ If C<e E<lt> s> or if the scan would end up past C<e>, it raises a UTF8 warning
 and returns the number of valid characters.
 
 =cut
+
 */
 
 STRLEN
 Perl_utf8_length(pTHX_ const U8 *s, const U8 *e)
 {
-    STRLEN len = 0;
+    STRLEN count;
+    const U8 * x = e - 1;
 
     PERL_ARGS_ASSERT_UTF8_LENGTH;
 
-    /* Note: cannot use UTF8_IS_...() too eagerly here since e.g.
-     * the bitops (especially ~) can create illegal UTF-8.
-     * In other words: in Perl UTF-8 is not just for Unicode. */
+    /* Assume the input is valid, and get the character count.  That function
+     * will not read off the end of the buffer with invalid input */
+    count =  valid_utf8_length(s, e);
 
-    if (e < s)
-	goto warn_and_return;
-    while (s < e) {
-        s += UTF8SKIP(s);
-	len++;
+    if (count == 0) {
+        return 0;
     }
 
-    if (e != s) {
-	len--;
-        warn_and_return:
-	if (PL_op)
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_UTF8),
-			     "%s in %s", unees, OP_DESC(PL_op));
-	else
-	    Perl_ck_warner_d(aTHX_ packWARN(WARN_UTF8), "%s", unees);
+    /* The only checking we do (which is to preserve backward compatibility) is
+     * to make sure that the final character isn't partial.  We do this by
+     * backtracking until we get a non-continuation.  'x' already points to the
+     * byte before 'e' */
+
+    while (x >= s && UTF8_IS_CONTINUATION(*x)) {
+        x--;
     }
 
-    return len;
+    if (x >= s && x + UTF8SKIP(x) == e) {
+        return count;
+    }
+
+    if (PL_op)
+        Perl_ck_warner_d(aTHX_ packWARN(WARN_UTF8),
+                            "%s in %s", unees, OP_DESC(PL_op));
+    else
+        Perl_ck_warner_d(aTHX_ packWARN(WARN_UTF8), "%s", unees);
+
+    return (x < s) ? 0 : count - 1;
 }
 
 /*

@@ -3656,6 +3656,13 @@ PERL_CALLCONV U8*	Perl_uvuni_to_utf8_flags(pTHX_ U8 *d, UV uv, UV flags);
 #define PERL_ARGS_ASSERT_UVUNI_TO_UTF8_FLAGS	\
 	assert(d)
 #ifndef PERL_NO_INLINE_FUNCTIONS
+PERL_STATIC_INLINE STRLEN	S_valid_utf8_length(const U8* s, const U8 *e)
+			__attribute__warn_unused_result__;
+#define PERL_ARGS_ASSERT_VALID_UTF8_LENGTH	\
+	assert(s); assert(e)
+#endif
+
+#ifndef PERL_NO_INLINE_FUNCTIONS
 PERL_STATIC_INLINE UV	Perl_valid_utf8_to_uvchr(const U8 *s, STRLEN *retlen)
 			__attribute__warn_unused_result__;
 #define PERL_ARGS_ASSERT_VALID_UTF8_TO_UVCHR	\

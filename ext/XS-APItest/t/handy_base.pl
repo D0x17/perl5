@@ -338,6 +338,17 @@ foreach my $name (sort keys %properties, 'octal') {
                                 && ! try_malforming($u, $function,
                                                     $suffix =~ /LC/);
 
+#                        diag __LINE__;
+#                        diag $function;
+#                        diag $suffix;
+#                        diag $display_name;
+#                        diag $utf8_param;
+#                        diag $display_locale;
+#                        diag ord $char;
+#                        diag $utf8_param_code;
+#                        diag __LINE__;
+#                        diag "test_is${function}$suffix('$char',"
+#                        . " $utf8_param_code)";
                         my $display_call = "is${function}$suffix( $display_name"
                                          . ", $utf8_param )$display_locale";
                         $ret = truth eval "test_is${function}$suffix('$char',"
@@ -568,6 +579,16 @@ foreach my $name (sort keys %to_properties) {
             # Skip if can't malform (because is a UTF-8 invariant)
             next if $expect_error && $u < ((ord "A" == 65) ? 128 : 160);
 
+#            diag __LINE__;
+#            diag $function;
+#            diag $suffix;
+#            diag $display_name;
+#            diag $utf8_param;
+#            diag $display_locale;
+#            diag sprintf "%x", ord $char;
+#            diag $utf8_param_code;
+#            diag __LINE__;
+#            diag "test_is${function}$suffix('$char',"
             my $display_call = "to${function}_utf8($display_name, $utf8_param )";
             $ret = eval   "test_to${function}_utf8('$char', $utf8_param_code)";
             if ($expect_error) {

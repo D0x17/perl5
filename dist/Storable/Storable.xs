@@ -2246,7 +2246,7 @@ cleanup_recursive_av(pTHX_ AV* av) {
 
 static void
 cleanup_recursive_hv(pTHX_ HV* hv) {
-    Ssize_t i = HvTOTALKEYS(hv);
+    SSize_t i = HvTOTALKEYS(hv);
     HE** arr = HvARRAY(hv);
     if (SvMAGICAL(hv)) return;
     while (i >= 0) {

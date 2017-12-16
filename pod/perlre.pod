@@ -706,6 +706,10 @@ the pattern uses a Unicode break (C<\b{...}> or C<\B{...}>); or
 
 the pattern uses L</C<(?[ ])>>
 
+=item 8
+
+the pattern uses L<C<(*SCRIPT_RUN: ...)>|/Script Runs>
+
 =back
 
 Another mnemonic for this modifier is "Depends", as the rules actually
@@ -2411,6 +2415,74 @@ the tail match, since they are in "logical" context: only
 whether they match is considered relevant.  For an example
 where side-effects of lookahead I<might> have influenced the
 following match, see L</C<< (?>pattern) >>>.
+
+=head2 Script Runs
+
+A script run is a sequence of characters all from the same Unicode
+script, such as Latin or Greek.  One might want a word of C<\w>
+characters, and you don't care which script they are, but you don't want
+some characters to be Latin and some to be Greek.  This is important for
+security for such things as serving up a web page in a browser.  The web
+page's address might be carefully crafted by someone malicious to look
+like another address.  A well known example is that some of the letters
+in C<paypal.com> look identical to Cyrillic ones, and a scammer could
+fool people into clicking on that link that would take them to a web
+page that would gather their account information I<etc>.
+
+To prevent this sort of thing you can tell Perl, starting in 5.28, to
+not accept mixed scripts in a pattern.  Simply enclose it like
+
+ (*SCRIPT_RUN:pattern)
+
+(The syntax of this looks very much like that of the L</Special
+Backtracking Control Verbs>, but it is unrelated.)
+
+What happens is that after I<pattern> succeeds in matching, it is
+subjected to the additional criteria that every character in it must be
+from the same script (see exceptions below).  If it doesn't,
+backtracking occurs until something all in the same script is found that
+matches, or all possibilities are exhausted.  This can cause a lot of
+backtracking, but in almost all circumstances, only malicious input will
+result in this, which could cause a denial of service attack.  If your
+needs permit, it is best to make the pattern possessive.
+
+ (*SCRIPT_RUN:(?>pattern))
+
+(See L</C<(?E<gt>pattern)>>.)
+
+The rules used for matching decimal digits are actually stricter than
+this.  Many scripts have their own sets of digits equivalent to the
+Western C<0> through C<9> ones.  Some have more than one set, such as
+Arabic.  For a script run to match, all digits in it must come from the
+same set, as determined by the first digit encountered.
+
+Unicode has two pseudo scripts that are handled specially.  "Inherited"
+is applied to characters that modify another, such as an accent of some
+type.  These are considered to be in the script of the master character,
+and so never cause a script run to not match.
+
+The other is "Common", consisting of mostly punctuation, are characters
+that can appear in many of the world's scripts.  These also don't cause
+a script run to not match, except for the digits C<0> through C<9>,
+which are some of the few non-punctuation characters in "Common".  These
+are in common use for mercantile purposes throughout the world, even if
+the script has its own set of digits.  If the first digit encountered is
+one of these, any digit from the actual script (or any other, for that
+matter) will cause the run to fail, and likewise these may not appear in
+a run where any other set of digits has already been encountered.
+
+This construct is non-capturing.  You can add parentheses to I<pattern>
+to capture, if desired.  You will have to do this if you plan to use
+L</(*ACCEPT) (*ACCEPT:arg)> and not have it bypass the script run
+checking.
+
+This feature is experimental, and the exact syntax and details of
+operation are subject to change; using it yields a warning in the
+C<experimental::script_run> category.
+
+At the moment, the C<Script> property is used as the basis for this
+feature.  But work is underway to convert to use the newer, better
+C<Script_Extensions> property instead.
 
 =head2 Special Backtracking Control Verbs
 

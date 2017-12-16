@@ -212,6 +212,7 @@ struct RExC_state_t {
     bool        seen_unfolded_sharp_s;
     bool        strict;
     bool        study_started;
+    bool        in_script_run;
 };
 
 #define RExC_flags	(pRExC_state->flags)
@@ -278,6 +279,7 @@ struct RExC_state_t {
 #define RExC_strict (pRExC_state->strict)
 #define RExC_study_started      (pRExC_state->study_started)
 #define RExC_warn_text (pRExC_state->warn_text)
+#define RExC_in_script_run      (pRExC_state->in_script_run)
 
 /* Heuristic check on the complexity of the pattern: if TOO_NAUGHTY, we set
  * a flag to disable back-off on the fixed/floating substrings - if it's
@@ -7037,6 +7039,7 @@ Perl_re_op_compile(pTHX_ SV ** const patternp, int pat_count,
     RExC_seen_unfolded_sharp_s = 0;
     RExC_contains_locale = 0;
     RExC_strict = cBOOL(pm_flags & RXf_PMf_STRICT);
+    RExC_in_script_run = 0;
     RExC_study_started = 0;
     pRExC_state->runtime_code_qr = NULL;
     RExC_frame_head= NULL;
@@ -10677,7 +10680,21 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
 	    vFAIL("Unmatched (");
         }
 
-        if ( *RExC_parse == '*') { /* (*VERB:ARG) */
+        if (paren == 's') {
+
+            /* A nested script run  is a no-op besides clustering */
+            if (RExC_in_script_run) {
+                paren = ':';
+                nextchar(pRExC_state);
+                ret = NULL;
+                goto parse_rest;
+            }
+            RExC_in_script_run = 1;
+
+	    ret = reg_node(pRExC_state, SROPEN);
+            is_open = 1;
+        }
+        else if ( *RExC_parse == '*') { /* (*VERB:ARG) */
 	    char *start_verb = RExC_parse + 1;
 	    STRLEN verb_len;
 	    char *start_arg = NULL;
@@ -10701,6 +10718,36 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
                 if (RExC_parse >= RExC_end) {
                     goto unterminated_verb_pattern;
                 }
+
+                if (memEQs(start_verb, verb_len, "SCRIPT_RUN")) {
+                    char * save_parse = RExC_parse;
+
+                    /* This verb indicates Unicode rules. */
+                    REQUIRE_UNI_RULES(flagp, NULL);
+
+                    if (PASS2) {
+                        Perl_ck_warner_d(aTHX_
+                            packWARN(WARN_EXPERIMENTAL__SCRIPT_RUN),
+                            "The SCRIPT_RUN feature is experimental"
+                            REPORT_LOCATION, REPORT_LOCATION_ARGS(start_arg));
+                    }
+                    if (start_arg == NULL) {
+                        vFAIL3("Verb pattern '%.*s' has a mandatory argument",
+                            verb_len, start_verb);
+                    }
+
+                    RExC_parse = start_arg;
+                    ret = reg(pRExC_state, 's', &flags, depth+1);
+                    if (flags & (RESTART_PASS1|NEED_UTF8)) {
+                        *flagp = flags & (RESTART_PASS1|NEED_UTF8);
+                        return NULL;
+                    }
+
+                    nextchar(pRExC_state);
+
+                    return ret;
+                }
+
 	        RExC_parse += UTF ? UTF8SKIP(RExC_parse) : 1;
 	        while ( RExC_parse < RExC_end && *RExC_parse != ')' )
                     RExC_parse += UTF ? UTF8SKIP(RExC_parse) : 1;
@@ -11472,6 +11519,10 @@ S_reg(pTHX_ RExC_state_t *pRExC_state, I32 paren, I32 *flagp,U32 depth)
 	    }
             Set_Node_Offset(ender,RExC_parse+1); /* MJD */
             Set_Node_Length(ender,1); /* MJD */
+	    break;
+	case 's':
+	    ender = reg_node(pRExC_state, SRCLOSE);
+            RExC_in_script_run = 0;
 	    break;
 	case '<':
 	case ',':
@@ -12751,12 +12802,6 @@ S_regatom(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth)
 	    goto finish_meta_pat;
 	case 'z':
 	    ret = reg_node(pRExC_state, EOS);
-	    *flagp |= SIMPLE;
-	    RExC_seen_zerolen++;		/* Do not optimize RE away */
-	    goto finish_meta_pat;
-	case 'M':
-            /* in regcomp, if are in the middle of one of these, and encounter a nested one, ignore the nesting, as the outer one overrides things */
-	    ret = reganode(pRExC_state, REFSR, RExC_npar - 1);
 	    *flagp |= SIMPLE;
 	    RExC_seen_zerolen++;		/* Do not optimize RE away */
 	    goto finish_meta_pat;
@@ -20778,7 +20823,7 @@ S_dumpuntil(pTHX_ const regexp *r, const regnode *start, const regnode *node,
 	/* While that wasn't END last time... */
 	NODE_ALIGN(node);
 	op = OP(node);
-	if (op == CLOSE || op == WHILEM)
+	if (op == CLOSE || op == SRCLOSE || op == WHILEM)
 	    indent--;
 	next = regnext((regnode *)node);
 
@@ -20902,7 +20947,7 @@ S_dumpuntil(pTHX_ const regexp *r, const regnode *start, const regnode *node,
 	    node = NEXTOPER(node);
 	    node += regarglen[(U8)op];
 	}
-	if (op == CURLYX || op == OPEN)
+	if (op == CURLYX || op == OPEN || op == SROPEN)
 	    indent++;
     }
     CLEAR_OPTSTART;

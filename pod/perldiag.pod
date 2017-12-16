@@ -6091,6 +6091,10 @@ in a future Perl version:
     use feature "signatures";
     sub foo ($left, $right) { ... }
 
+=item The SCRIPT_RUN feature is experimental
+
+(S experimental::script_run) This warning is emitted if you XXX
+
 =item The stat preceding %s wasn't an lstat
 
 (F) It makes no sense to test the current stat buffer for symbolic
